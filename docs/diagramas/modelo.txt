@@ -1,0 +1,8 @@
+id
+codigo
+nombre
+tipo
+serial
+marca
+estado
+fecha_registro
