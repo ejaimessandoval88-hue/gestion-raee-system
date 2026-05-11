@@ -1,0 +1,296 @@
+database/
+¦-- 01_create_database.sql
+¦-- 02_tables.sql
+¦-- 03_relationships.sql
+¦-- 04_insert_data.sql
+¦-- 05_views.sql
+¦-- 06_triggers.sql
+¦-- README.md
+
+#Crear base de datos.
+
+CREATE DATABASE IF NOT EXISTS sistema_raee;
+
+USE sistema_raee;
+
+#Tabla de Roles
+
+CREATE TABLE roles (
+    id_rol INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_rol VARCHAR(50) NOT NULL
+);
+
+#Tabla de usurios
+
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    correo VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    telefono VARCHAR(20),
+    estado ENUM('Activo', 'Inactivo') DEFAULT 'Activo',
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id_rol INT
+);
+
+#Tabla de empresas
+
+CREATE TABLE empresas (
+    id_empresa INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_empresa VARCHAR(150) NOT NULL,
+    nit VARCHAR(30) UNIQUE,
+    direccion VARCHAR(150),
+    ciudad VARCHAR(100),
+    departamento VARCHAR(100),
+    telefono VARCHAR(20),
+    correo VARCHAR(100)
+);
+
+#Tabla de equipos tecnologicos
+
+CREATE TABLE equipos (
+    id_equipo INT AUTO_INCREMENT PRIMARY KEY,
+    codigo_equipo VARCHAR(50) UNIQUE NOT NULL,
+    nombre_equipo VARCHAR(100),
+    tipo_equipo VARCHAR(100),
+    marca VARCHAR(100),
+    modelo VARCHAR(100),
+    serial_equipo VARCHAR(100),
+    fecha_compra DATE,
+    estado ENUM(
+        'Nuevo',
+        'En uso',
+        'Mantenimiento',
+        'Obsoleto',
+        'RAEE generado'
+    ) DEFAULT 'Nuevo',
+    id_empresa INT,
+    responsable VARCHAR(100),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+#HISTORIAL DE TRAZABILIDAD
+
+CREATE TABLE historial_equipos (
+    id_historial INT AUTO_INCREMENT PRIMARY KEY,
+    id_equipo INT NOT NULL,
+    estado_anterior VARCHAR(50),
+    estado_nuevo VARCHAR(50),
+    observacion TEXT,
+    usuario_responsable VARCHAR(100),
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+#TABLA RESIDUOS RAEE
+
+CREATE TABLE residuos_raee (
+    id_raee INT AUTO_INCREMENT PRIMARY KEY,
+    id_equipo INT NOT NULL,
+    categoria VARCHAR(100),
+    peso DECIMAL(10,2),
+    fecha_generacion DATE,
+    observaciones TEXT
+);
+
+#DISPOICION FINAL
+
+CREATE TABLE disposicion_final (
+    id_disposicion INT AUTO_INCREMENT PRIMARY KEY,
+    id_raee INT NOT NULL,
+    tipo_disposicion ENUM(
+        'Reciclaje',
+        'Reutilización',
+        'Donación',
+        'Destrucción certificada'
+    ),
+    empresa_gestora VARCHAR(150),
+    certificado_disposicion VARCHAR(255),
+    fecha_disposicion DATE
+);
+
+#RELACIONES SQL
+
+USE sistema_raee;
+
+ALTER TABLE usuarios
+ADD CONSTRAINT fk_usuario_rol
+FOREIGN KEY (id_rol)
+REFERENCES roles(id_rol);
+
+ALTER TABLE equipos
+ADD CONSTRAINT fk_equipo_empresa
+FOREIGN KEY (id_empresa)
+REFERENCES empresas(id_empresa);
+
+ALTER TABLE historial_equipos
+ADD CONSTRAINT fk_historial_equipo
+FOREIGN KEY (id_equipo)
+REFERENCES equipos(id_equipo);
+
+ALTER TABLE residuos_raee
+ADD CONSTRAINT fk_raee_equipo
+FOREIGN KEY (id_equipo)
+REFERENCES equipos(id_equipo);
+
+ALTER TABLE disposicion_final
+ADD CONSTRAINT fk_disposicion_raee
+FOREIGN KEY (id_raee)
+REFERENCES residuos_raee(id_raee);
+
+#INSERT DATA
+
+USE sistema_raee;
+
+ALTER TABLE usuarios
+ADD CONSTRAINT fk_usuario_rol
+FOREIGN KEY (id_rol)
+REFERENCES roles(id_rol);
+
+ALTER TABLE equipos
+ADD CONSTRAINT fk_equipo_empresa
+FOREIGN KEY (id_empresa)
+REFERENCES empresas(id_empresa);
+
+ALTER TABLE historial_equipos
+ADD CONSTRAINT fk_historial_equipo
+FOREIGN KEY (id_equipo)
+REFERENCES equipos(id_equipo);
+
+ALTER TABLE residuos_raee
+ADD CONSTRAINT fk_raee_equipo
+FOREIGN KEY (id_equipo)
+REFERENCES equipos(id_equipo);
+
+ALTER TABLE disposicion_final
+ADD CONSTRAINT fk_disposicion_raee
+FOREIGN KEY (id_raee)
+REFERENCES residuos_raee(id_raee);
+
+#USUARIO ADMINISTRADOR 
+
+INSERT INTO usuarios(
+nombre,
+apellido,
+correo,
+password,
+id_rol
+)
+VALUES(
+'Admin',
+'Sistema',
+'admin@raee.com',
+'admin123',
+1
+);
+
+#EMPRESAS
+
+INSERT INTO empresas(
+nombre_empresa,
+nit,
+direccion,
+ciudad,
+departamento
+)
+VALUES(
+'Empresa Demo',
+'900123456',
+'Cra 10 #20-30',
+'Bucaramanga',
+'Santander'
+);
+
+#EQUIPOS
+
+INSERT INTO equipos(
+codigo_equipo,
+nombre_equipo,
+tipo_equipo,
+marca,
+modelo,
+serial_equipo,
+estado,
+id_empresa,
+responsable
+)
+VALUES(
+'RAEE-001',
+'Computador Dell',
+'PC Escritorio',
+'Dell',
+'Optiplex',
+'ABC12345',
+'En uso',
+1,
+'Área TI'
+);
+
+#VISTA TRAZABILIDAD
+
+INSERT INTO equipos(
+codigo_equipo,
+nombre_equipo,
+tipo_equipo,
+marca,
+modelo,
+serial_equipo,
+estado,
+id_empresa,
+responsable
+)
+VALUES(
+'RAEE-001',
+'Computador Dell',
+'PC Escritorio',
+'Dell',
+'Optiplex',
+'ABC12345',
+'En uso',
+1,
+'Área TI'
+);
+
+#VISTA RAEE
+
+CREATE VIEW vista_raee AS
+SELECT
+e.codigo_equipo,
+e.nombre_equipo,
+r.categoria,
+r.fecha_generacion,
+d.tipo_disposicion
+FROM residuos_raee r
+INNER JOIN equipos e
+ON r.id_equipo = e.id_equipo
+LEFT JOIN disposicion_final d
+ON r.id_raee = d.id_raee;
+
+#TRAZABILIDAD AUTOMATICA
+
+DELIMITER $$
+
+CREATE TRIGGER trg_historial_estado
+AFTER UPDATE ON equipos
+FOR EACH ROW
+BEGIN
+    IF OLD.estado <> NEW.estado THEN
+        INSERT INTO historial_equipos(
+            id_equipo,
+            estado_anterior,
+            estado_nuevo,
+            observacion,
+            usuario_responsable
+        )
+        VALUES(
+            NEW.id_equipo,
+            OLD.estado,
+            NEW.estado,
+            'Cambio automático de estado',
+            'Sistema'
+        );
+    END IF;
+END$$
+
+DELIMITER ;
+
