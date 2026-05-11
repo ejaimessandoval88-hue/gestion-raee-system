@@ -1,0 +1,17 @@
+Usuario inicia sesión
+?
+Registra activo tecnológico
+?
+Sistema asigna ID único
+?
+Equipo entra en ciclo de vida
+?
+Cambios de estado quedan registrados
+?
+Equipo se vuelve obsoleto
+?
+Sistema genera RAEE
+?
+Se registra disposición final
+?
+Sistema genera reportes
